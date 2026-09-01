@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radial Field Shape Generator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #fff;
+      color: #000;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    body {
+      display: flex;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) 320px;
+      width: 100%;
+      height: 100vh;
+    }
+
+    .stage {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      padding: 24px;
+      border-right: 1px solid #000;
+      overflow: auto;
+    }
+
+    .canvas-shell {
+      width: min(800px, calc(100vmin - 48px));
+      aspect-ratio: 1;
+      border: 1px solid #000;
+      background: #fff;
+    }
+
+    .canvas-shell canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    aside {
+      height: 100vh;
+      padding: 20px;
+      overflow: auto;
+      background: #fff;
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    fieldset {
+      margin: 0 0 22px;
+      padding: 0;
+      border: 0;
+    }
+
+    legend {
+      width: 100%;
+      margin: 0 0 12px;
+      padding: 0 0 6px;
+      border-bottom: 1px solid #000;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .legend-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .legend-toggle label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .legend-toggle output {
+      display: none;
+    }
+
+    .section-toggle {
+      width: auto;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .section-toggle::before {
+      content: "-";
+      display: inline-block;
+      width: 14px;
+    }
+
+    .section-toggle[aria-expanded="false"]::before {
+      content: "+";
+    }
+
+    .section-toggle:hover,
+    .section-toggle:focus-visible {
+      background: transparent;
+      color: inherit;
+      text-decoration: underline;
+    }
+
+    fieldset.collapsed > .control {
+      display: none;
+    }
+
+    .control {
+      display: grid;
+      gap: 7px;
+      margin: 0 0 14px;
+    }
+
+    .control-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .control:has(input[type="checkbox"]) {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+    }
+
+    .control:has(input[type="checkbox"]) .control-header {
+      align-items: center;
+    }
+
+    .control:has(input[type="checkbox"]) output {
+      display: none;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: #000;
+    }
+
+    output {
+      min-width: 64px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"],
+    select {
+      width: 100%;
+      accent-color: #000;
+    }
+
+    select {
+      min-height: 34px;
+      border: 1px solid #000;
+      border-radius: 0;
+      background: #fff;
+      color: #000;
+      font: inherit;
+    }
+
+    button {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #000;
+      border-radius: 0;
+      background: #fff;
+      color: #000;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    button:hover,
+    button:focus-visible {
+      background: #000;
+      color: #fff;
+      outline: none;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .top-actions {
+      margin: 0 0 18px;
+    }
+
+    #randomizeAll {
+      background: #000;
+      color: #fff;
+    }
+
+    #randomizeAll:hover,
+    #randomizeAll:focus-visible {
+      background: #fff;
+      color: #000;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        overflow: auto;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .stage {
+        min-height: min(100vw, 760px);
+        border-right: 0;
+        border-bottom: 1px solid #000;
+      }
+
+      .canvas-shell {
+        width: min(800px, calc(100vw - 32px));
+      }
+
+      aside {
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="stage" aria-label="Generated circles canvas">
+      <div id="canvas-shell" class="canvas-shell"></div>
+    </section>
+
+    <aside>
+      <div class="actions top-actions">
+        <button id="randomizeAll" type="button">Randomize All</button>
+      </div>
+
+      <h1>Radial Field Shapes</h1>
+
+      <fieldset>
+        <legend><button class="section-toggle" type="button" aria-expanded="true">Canvas</button></legend>
+        <label class="control">
+          <span class="control-header"><span>Background Color</span><output for="backgroundColor" id="backgroundColorValue"></output></span>
+          <input id="backgroundColor" type="color" value="#ffffff">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Min Radius</span><output for="minRadius" id="minRadiusValue"></output></span>
+          <input id="minRadius" type="range" min="0" max="350" step="1" value="0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Max Radius</span><output for="maxRadius" id="maxRadiusValue"></output></span>
+          <input id="maxRadius" type="range" min="100" max="560" step="1" value="400">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend><button class="section-toggle" type="button" aria-expanded="true">Shape 1</button></legend>
+        <label class="control">
+          <span class="control-header"><span>Shape Type</span><output for="shape1Type" id="shape1TypeValue"></output></span>
+          <select id="shape1Type">
+            <option value="lines">Lines</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+            <option value="dashes">Dashes</option>
+            <option value="squares">Squares</option>
+            <option value="waves">Waves</option>
+            <option value="chevrons">Chevrons</option>
+            <option value="asterisks">Asterisks</option>
+            <option value="concentric">Concentric Circles</option>
+            <option value="radialRays">Radial Rays</option>
+            <option value="crossMarks">Cross Marks</option>
+            <option value="contourFlow">Contour Flow</option>
+          </select>
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Spacing</span><output for="ringSpacing" id="ringSpacingValue"></output></span>
+          <input id="ringSpacing" type="range" min="4" max="24" step="1" value="8">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Angle</span><output for="shape1Angle" id="shape1AngleValue"></output></span>
+          <input id="shape1Angle" type="range" min="0" max="180" step="1" value="0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Weight</span><output for="strokeWeight" id="strokeWeightValue"></output></span>
+          <input id="strokeWeight" type="range" min="0.1" max="10" step="0.1" value="2.0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Color</span><output for="ringColor" id="ringColorValue"></output></span>
+          <input id="ringColor" type="color" value="#000000">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend class="legend-toggle">
+          <button class="section-toggle" type="button" aria-expanded="true">Shape 2</button>
+          <label aria-label="Show Shape 2">
+            <output for="fillEmpty" id="fillEmptyValue"></output>
+            <input id="fillEmpty" type="checkbox" checked>
+          </label>
+        </legend>
+        <label class="control">
+          <span class="control-header"><span>Shape Type</span><output for="fillPattern" id="fillPatternValue"></output></span>
+          <select id="fillPattern">
+            <option value="lines">Lines</option>
+            <option value="crosshatch">Crosshatch</option>
+            <option value="dots">Dots</option>
+            <option value="dashes">Dashes</option>
+            <option value="squares">Squares</option>
+            <option value="waves">Waves</option>
+            <option value="chevrons">Chevrons</option>
+            <option value="asterisks">Asterisks</option>
+            <option value="concentric">Concentric Circles</option>
+            <option value="radialRays">Radial Rays</option>
+            <option value="crossMarks">Cross Marks</option>
+            <option value="contourFlow">Contour Flow</option>
+          </select>
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Spacing</span><output for="fillSpacing" id="fillSpacingValue"></output></span>
+          <input id="fillSpacing" type="range" min="4" max="24" step="1" value="10">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Angle</span><output for="fillAngle" id="fillAngleValue"></output></span>
+          <input id="fillAngle" type="range" min="0" max="180" step="1" value="35">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Weight</span><output for="fillWeight" id="fillWeightValue"></output></span>
+          <input id="fillWeight" type="range" min="0.1" max="10" step="0.1" value="2.0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Color</span><output for="fillColor" id="fillColorValue"></output></span>
+          <input id="fillColor" type="color" value="#000000">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend class="legend-toggle">
+          <button class="section-toggle" type="button" aria-expanded="true">Contour</button>
+          <label aria-label="Show Contour">
+            <output for="showContour" id="showContourValue"></output>
+            <input id="showContour" type="checkbox" checked>
+          </label>
+        </legend>
+        <label class="control">
+          <span class="control-header"><span>Contour Weight</span><output for="contourWeight" id="contourWeightValue"></output></span>
+          <input id="contourWeight" type="range" min="0.1" max="10" step="0.1" value="2.0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Contour Color</span><output for="contourColor" id="contourColorValue"></output></span>
+          <input id="contourColor" type="color" value="#000000">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend><button class="section-toggle" type="button" aria-expanded="true">Breakup Field</button></legend>
+        <label class="control">
+          <span class="control-header"><span>Field Type</span><output for="fieldType" id="fieldTypeValue"></output></span>
+          <select id="fieldType">
+            <option value="perlin">Perlin</option>
+            <option value="radial">Radial</option>
+            <option value="angular">Angular</option>
+            <option value="ripple">Ripple</option>
+            <option value="spiral">Spiral</option>
+            <option value="mixed">Mixed</option>
+            <option value="interference">Interference</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="ridged">Ridged</option>
+            <option value="whorled">Whorled</option>
+            <option value="product">Product</option>
+            <option value="voronoi">Voronoi</option>
+            <option value="julia">Julia</option>
+            <option value="flowField">Flow Field</option>
+            <option value="metaballs">Metaballs</option>
+            <option value="turbulence">Turbulence</option>
+            <option value="moire">Moire</option>
+            <option value="cracks">Cracks</option>
+            <option value="lobedSdf">Lobed SDF</option>
+            <option value="pinwheel">Pinwheel</option>
+            <option value="superformula">Superformula</option>
+            <option value="gyroid">Gyroid</option>
+            <option value="roseCurve">Rose Curve</option>
+            <option value="faultLines">Fault Lines</option>
+            <option value="triangularLattice">Triangular Lattice</option>
+            <option value="orbitTrap">Orbit Trap</option>
+          </select>
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Blend Field</span><output for="fieldBlendType" id="fieldBlendTypeValue"></output></span>
+          <select id="fieldBlendType">
+            <option value="perlin">Perlin</option>
+            <option value="radial">Radial</option>
+            <option value="angular">Angular</option>
+            <option value="ripple">Ripple</option>
+            <option value="spiral">Spiral</option>
+            <option value="mixed">Mixed</option>
+            <option value="interference">Interference</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="ridged">Ridged</option>
+            <option value="whorled">Whorled</option>
+            <option value="product">Product</option>
+            <option value="voronoi">Voronoi</option>
+            <option value="julia">Julia</option>
+            <option value="flowField">Flow Field</option>
+            <option value="metaballs">Metaballs</option>
+            <option value="turbulence">Turbulence</option>
+            <option value="moire">Moire</option>
+            <option value="cracks">Cracks</option>
+            <option value="lobedSdf">Lobed SDF</option>
+            <option value="pinwheel">Pinwheel</option>
+            <option value="superformula">Superformula</option>
+            <option value="gyroid">Gyroid</option>
+            <option value="roseCurve">Rose Curve</option>
+            <option value="faultLines">Fault Lines</option>
+            <option value="triangularLattice">Triangular Lattice</option>
+            <option value="orbitTrap">Orbit Trap</option>
+          </select>
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Blend Amount</span><output for="fieldBlendAmount" id="fieldBlendAmountValue"></output></span>
+          <input id="fieldBlendAmount" type="range" min="0" max="1" step="0.01" value="0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Threshold / Coverage</span><output for="noiseThreshold" id="noiseThresholdValue"></output></span>
+          <input id="noiseThreshold" type="range" min="0" max="1" step="0.01" value="0.45">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Scale</span><output for="noiseScale" id="noiseScaleValue"></output></span>
+          <input id="noiseScale" type="range" min="0.001" max="0.05" step="0.001" value="0.005">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Seed</span><output for="noiseSeed" id="noiseSeedValue"></output></span>
+          <input id="noiseSeed" type="range" min="0" max="1000" step="1" value="150">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Mix</span><output for="radialWeight" id="radialWeightValue"></output></span>
+          <input id="radialWeight" type="range" min="0" max="1" step="0.01" value="0.5">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Radial Frequency</span><output for="fieldRadialFrequency" id="fieldRadialFrequencyValue"></output></span>
+          <input id="fieldRadialFrequency" type="range" min="0.2" max="8" step="0.1" value="1.4">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Angular Frequency</span><output for="fieldAngularFrequency" id="fieldAngularFrequencyValue"></output></span>
+          <input id="fieldAngularFrequency" type="range" min="1" max="32" step="1" value="8">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Warp Strength</span><output for="warpStrength" id="warpStrengthValue"></output></span>
+          <input id="warpStrength" type="range" min="0" max="3" step="0.05" value="0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Offset X</span><output for="fieldOffsetX" id="fieldOffsetXValue"></output></span>
+          <input id="fieldOffsetX" type="range" min="-300" max="300" step="1" value="0">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Offset Y</span><output for="fieldOffsetY" id="fieldOffsetYValue"></output></span>
+          <input id="fieldOffsetY" type="range" min="-300" max="300" step="1" value="0">
+        </label>
+        <button id="resetFieldOffset" type="button">Reset Offset</button>
+      </fieldset>
+
+      <fieldset>
+        <legend><button class="section-toggle" type="button" aria-expanded="true">Animation</button></legend>
+        <label class="control">
+          <span class="control-header"><span>Animate Threshold</span><output for="animateThreshold" id="animateThresholdValue"></output></span>
+          <input id="animateThreshold" type="checkbox">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Threshold Min</span><output for="thresholdMin" id="thresholdMinValue"></output></span>
+          <input id="thresholdMin" type="range" min="0" max="1" step="0.01" value="0.25">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Threshold Max</span><output for="thresholdMax" id="thresholdMaxValue"></output></span>
+          <input id="thresholdMax" type="range" min="0" max="1" step="0.01" value="0.72">
+        </label>
+        <label class="control">
+          <span class="control-header"><span>Animation Duration</span><output for="animationDuration" id="animationDurationValue"></output></span>
+          <input id="animationDuration" type="range" min="1" max="12" step="0.5" value="4">
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button id="downloadSvg" type="button">Download SVG</button>
+        <button id="downloadAnimatedSvg" type="button">Download Animated SVG</button>
+        <button id="downloadWebm" type="button">Download WebM Video</button>
+        <button id="downloadPng" type="button">Download PNG</button>
+      </div>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
